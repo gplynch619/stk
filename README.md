@@ -1,6 +1,6 @@
 <p align="center"><img src="http://svgur.com/i/JSJ.svg" width=200 ></p>
 
-STK is the *S*PECC *T*ool*k*it, a collection of scripts and tools that make working with the data produced by [SPECC](https://xgitlab.cels.anl.gov/gplynch/specc) easier.
+STK is the **S**PECC **T**ool**k**it, a collection of scripts and tools that make working with the data produced by [SPECC](https://xgitlab.cels.anl.gov/gplynch/specc) easier.
 
 Usage
 ------
