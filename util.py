@@ -464,8 +464,6 @@ def KlypinHoltzmann(k, params):
 
     tf=np.log(1.0+2.34*qkh)/(2.34*qkh)*(1.0+13.0*qkh+(10.5*qkh)**2.0 + (10.4*qkh)**3.0 + (6.51*qkh)**4.0)**(-0.25)
 
-    
-
     return tf
 
 def lighten_color(color, amount=0.5):
