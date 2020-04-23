@@ -2,6 +2,8 @@ import os
 import numpy as np
 import scipy.integrate
 from scipy.interpolate import interp1d
+from scipy.special import jv
+from collections import OrderedDict
 
 def ReadParameterFile(df):
     """
@@ -105,6 +107,18 @@ def ReadParameterFile(df):
                     td.append(float(z))
                 sparams["z_print"] = td
 
+            if cline[0] == "FREQUENCY":
+                sparams["frequency"] = float(cline[-1])
+            
+            if cline[0] == "GAUSSIAN_WIDTH":
+                sparams["width"] = float(cline[-1])
+            
+            if cline[0] == "INITIAL_SHIFT":
+                sparams["shift"] = float(cline[-1])
+            
+            if cline[0] == "DURATION":
+                sparams["duration"] = float(cline[-1])
+
     #
     # Some adjustments
     #
@@ -139,15 +153,40 @@ def CreateRedshiftDict(directory):
     for name in files:
         if ".pk." in name:
             f.append(name)
+        elif ".tf." in name:
+            f.append(name)
     for name in f:
         zsplit = name.split("z")
         split = zsplit[0].split(".")
-        redshift=zsplit[-1]
         if ".ini" in name:
-            redshift="ini"
+            redshift=-1
+        else:
+            redshift=float(zsplit[-1])
         d[redshift]=name
+    dd = OrderedDict(sorted(d.items(), key=lambda x: x[0], reverse=True))
 
-    return d
+    return dd
+
+def CreateStepDict(directory):
+    """
+    Parse the directory and create a dictionary of redshift:file
+    """
+    d={}
+    f=[]
+    files = os.listdir(directory)
+    for name in files:
+        if ".1D." in name:
+            f.append(name)
+    for name in f:
+        split = name.split(".")
+        if ".ini" in name:
+            step=0
+        else:
+            step = int(split[-2])+1
+        d[step]=name
+    dd = OrderedDict(sorted(d.items(), key=lambda x: x[0], reverse=False))
+
+    return dd
 
 def ConvertStepToRedshift(snaps, zi, zf, ns, zpr):
     """
@@ -223,6 +262,34 @@ def GrowthFactorClassic(z, params):
 
     return gf
 
+def GrowthFactorQuantum(z, params, k):
+    """
+    Computes the cosmological growth factor at individual redshift z.
+    """
+    z_primoridal = 100000.
+    
+    x1 = 1./(1. + z_primoridal)
+    x2 = 1./(1. + z)
+    
+    x  = np.array([x1, x2])
+    y1 = np.array([x1, 0.])
+    
+    y2 = scipy.integrate.odeint(delta_deriv, y1, x, args=(params,k))[1]
+
+    dplus = y2[0]
+    ddot  = y2[1]
+    
+    x1 = 1./(1. + z_primoridal)
+    x2 = 1.
+    x  = np.array([x1, x2])
+    y1 = np.array([x1, 0.])
+    y2 = scipy.integrate.odeint(delta_deriv, y1, x, args=(params,k))[1]
+
+    gf = dplus/y2[0]
+    gd = ddot/y2[0]
+
+    return gf
+
 #def Compute_Jeans(a, params):
 #    NU=1.91715234e-26
 #    alpha=NU/params["h"]
@@ -241,7 +308,7 @@ def d_gf_cdmrnu(y, a, params):
     
     return dydx
 
-def delta_deriv(a,y,params,k):
+def delta_deriv(y,a, params, k):
     NU=1.91715234e-26
     alpha=NU*params["h"]
     kappa1=(k**4)*(1/6.0*params["omega_cb"])*(alpha/params["mass"])**2 #units of Mpc^4
@@ -250,7 +317,7 @@ def delta_deriv(a,y,params,k):
     dydx=0.*y
 
     dydx[0] = y[1]/a/H
-    dydx[1] = -2.*y[1]/a + 1.5*params["omega_cb"]*y[0]*(100*params["h"])/(H*a**4)*(1-kappa1/a)
+    dydx[1] = -2.*y[1]/a + 1.5*params["omega_cb"]*y[0]/(H*a**4)*(1-kappa1/a)
     #dydx[1] = -(1/adot**2)*(add + 2.*adot**2/a)*y[1] +1.5*params["omega_cb"]*y[0]/(adot*adot*a**3)*(1-kappa1/a)
 
     return dydx
@@ -465,6 +532,24 @@ def KlypinHoltzmann(k, params):
     tf=np.log(1.0+2.34*qkh)/(2.34*qkh)*(1.0+13.0*qkh+(10.5*qkh)**2.0 + (10.4*qkh)**3.0 + (6.51*qkh)**4.0)**(-0.25)
 
     return tf
+
+def BesselGrowth(z, params, k):
+    a = 1./(1. + z)
+    NU=1.91715234e-26
+    alpha=NU*params["h"]
+    mass = params["mass"]
+    
+    arg = (1.0/np.sqrt(params["omega_m"]*a))*(alpha/mass)*k**2
+    #arg = (alpha/mass)*k**2/np.sqrt(a)
+
+    tmp =  a**(-0.25)*jv(-5.0/2, arg)
+
+    arg = (1.0/np.sqrt(params["omega_m"]*1.0))*(alpha/mass)*k**2
+    
+    gf = tmp/(jv(-5.0/2.0, arg))
+    
+    return gf
+
 
 def lighten_color(color, amount=0.5):
     """

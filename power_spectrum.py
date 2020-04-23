@@ -25,17 +25,13 @@ class PowerSpectrum:
 
 class TransferFunction:
 
-    def __init__(self, infile, s8, ns, renorm = True):
+    def __init__(self, infile, s8, ns, snorm = 1.0):
         self.infile_name = infile
         k, tm = np.genfromtxt(infile, comments="#", dtype="float64", unpack=True, usecols=(0,6))
         self.k = k
         self.tm=tm
-        self.s2 = util.ComputeSigma2(self.k, self.tm, ns)
-        snorm = s8**2/self.s2
-        if(renorm):
-            self.power = self.compute_pk(snorm, ns) 
-        else:
-            self.power = self.compute_pk(1.0, ns)
+        self.power = self.compute_pk(snorm, ns) 
+
     def compute_pk(self, snorm, ns):
         pk = snorm*self.k**ns*self.tm**2
         temp = PowerSpectrum()
